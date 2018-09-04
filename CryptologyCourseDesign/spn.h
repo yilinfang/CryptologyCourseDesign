@@ -1,5 +1,7 @@
 #pragma once
 #include "FormatExchange.h"
+#include <ctime>
+
 
 using namespace std;
 
@@ -16,11 +18,16 @@ public:
 	char* Decrypt(Ciphertext ciphertext);
 	void Decrypt(Plaintext &plaintext, Ciphertext ciphertext);
 	void Decrypt(bool* text);
-	unsigned char* GetKey();
+
 	bool* LinearAttack(bool x[][16], bool y[][16], int num); //21~24 29~32
 	int LinearAttack(bool x[][16], bool y[][16], int num, bool* _key);
 	bool* ViolateAttack(bool x[][16], bool y[][16], bool key[8], int num);
-
+	
+	unsigned char* GetKey();
+	void CreateAttackTestData(const char* x_filename, const char* y_filename, int num);
+	void CreateAttackTestData(bool x[][16], bool y[][16], int num);
+	void CreateAttackTestData(const char* x_filename, bool x[][16], const char* y_filename, bool y[][16], int num);
+	void LoadAttackTestData(const char* x_filename, const char* y_filename, bool x[][16], bool y[][16], int num);
 private:
 	bool key[32];
 	int sbox[16] = { 14, 4, 13, 1, 2, 15, 11, 8, 3, 10, 6, 12, 5, 9, 0, 7 };

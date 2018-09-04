@@ -98,6 +98,120 @@ unsigned char * spn::GetKey()
 	return Bool_A2UnsignedChar_A(key, 32);
 }
 
+void spn::CreateAttackTestData(const char * x_filename,const char * y_filename, int num)
+{
+	srand((unsigned)time(NULL));
+	FILE* f1, *f2;
+	fopen_s(&f1, x_filename, "w");
+	fopen_s(&f2, y_filename, "w");
+	for (int i = 0; i < num; i++)
+	{
+		unsigned char bufa[2];
+		bufa[0] = rand() & 0xff;
+		bufa[1] = rand() & 0xff;
+		bool* bufa1 = UnsignedChar_A2Bool_A(bufa, 2);
+		for (int j = 0; j < 16; j++)
+		{
+			fprintf(f1, "%d ", (bufa1[j] && 1));
+		}
+		fprintf(f1, "\n");
+		this->Encrypt(bufa1);
+		for (int j = 0; j < 16; j++)
+		{
+			fprintf(f2, "%d ", (bufa1[j] && 1));
+		}
+		fprintf(f2, "\n");
+		free(bufa1);
+	}
+	fclose(f1);
+	fclose(f2);
+}
+
+void spn::CreateAttackTestData(bool x[][16], bool y[][16], int num)
+{
+	srand((unsigned)time(NULL));
+	for (int i = 0; i < num; i++)
+	{
+		unsigned char bufa[2];
+		bufa[0] = rand() & 0xff;
+		bufa[1] = rand() & 0xff;
+		bool* bufa1 = UnsignedChar_A2Bool_A(bufa, 2);
+		memcpy(x[i], bufa1, 16 * sizeof(bool));
+		this->Encrypt(bufa1);
+		memcpy(y[i], bufa1, 16 * sizeof(bool));
+		free(bufa1);
+	}
+}
+
+void spn::CreateAttackTestData(const char * x_filename, bool x[][16], const char * y_filename, bool y[][16], int num)
+{
+	srand((unsigned)time(NULL));
+	FILE* f1, *f2;
+	fopen_s(&f1, x_filename, "w");
+	fopen_s(&f2, y_filename, "w");
+	for (int i = 0; i < num; i++)
+	{
+		unsigned char bufa[2];
+		bufa[0] = rand() & 0xff;
+		bufa[1] = rand() & 0xff;
+		bool* bufa1 = UnsignedChar_A2Bool_A(bufa, 2);
+		for (int j = 0; j < 16; j++)
+		{
+			fprintf(f1, "%d ", (bufa1[j] && 1));
+		}
+		fprintf(f1, "\n");
+		memcpy(x[i], bufa1, 16 * sizeof(bool));
+		this->Encrypt(bufa1);
+		for (int j = 0; j < 16; j++)
+		{
+			fprintf(f2, "%d ", (bufa1[j] && 1));
+		}
+		fprintf(f2, "\n");
+		memcpy(y[i], bufa1, 16 * sizeof(bool));
+		free(bufa1);
+	}
+	fclose(f1);
+	fclose(f2);
+}
+
+void spn::LoadAttackTestData(const char * x_filename, const char * y_filename, bool x[][16], bool y[][16], int num)
+{
+	FILE* f1, *f2;
+	fopen_s(&f1, x_filename, "r");
+	fopen_s(&f2, y_filename, "r");
+	for (int i = 0; i < num; i++)
+	{
+		for (int j = 0; j < 16; j++)
+		{
+			int tmp = 0;
+			fscanf_s(f1, "%d", &tmp);
+			if (tmp)
+			{
+				x[i][j] = 1;
+			}
+			else
+			{
+				x[i][j] = 0;
+			}
+		}
+		for (int j = 0; j < 16; j++)
+		{
+			int tmp = 0;
+			fscanf_s(f2, "%d", &tmp);
+			if (tmp)
+			{
+				y[i][j] = 1;
+			}
+			else
+			{
+				y[i][j] = 0;
+			}
+		}
+	}
+	fclose(f1);
+	fclose(f2);
+}
+
 bool * spn::LinearAttack(bool x[][16], bool y[][16], int num)
 {
 	int count[256] = { 0 };
@@ -106,23 +220,14 @@ bool * spn::LinearAttack(bool x[][16], bool y[][16], int num)
 	bool key[256][8];
 	for (int i = 0; i < 256; i++)
 	{
-		//printf("%d\n", i);
-		//getchar();
 		unsigned char temp = i & 0xff;
 		bool* bufa = UnsignedChar_A2Bool_A(&temp, 1);
 		memcpy(key[i], bufa, 8 * sizeof(bool));
-		for (int j = 0; j < 8; j++)
-		{
-			printf("%d ", key[i][j]);
-		}
-		printf("\n");
 		free(bufa);
 	}
 	for (int i = 0; i < 256; i++)
 	{
-		//printf("%d\n", count[i]);
 		count[i] = LinearAttack(x, y, num, key[i]);
-		//printf("%d\n", count[i]);
 	}
 	for (int i = 0; i < 256; i++)
 	{
@@ -168,7 +273,6 @@ bool * spn::ViolateAttack(bool x[][16], bool y[][16], bool key[8], int num)
 		key_t[1] = (i >> 8) & 0x0000ff;
 		key_t[2] = i & 0x0000ff;
 		bool * bufa2 = UnsignedChar_A2Bool_A(key_t, 3);
-		printf("\n");
 		memcpy(bufa1, bufa2, 20 * sizeof(bool));
 		memcpy(bufa1 + 20, key, 4 * sizeof(bool));
 		memcpy(bufa1 + 24, bufa2 + 20, 4 * sizeof(bool));
@@ -282,7 +386,10 @@ bool spn::IsRightKey(bool x[][16], bool y[][16], int num, bool * key)
 	{
 		bool test[16];
 		memcpy(test, x[i], 16 * sizeof(bool));
-		this->Encrypt(test);
+		unsigned char* _key = Bool_A2UnsignedChar_A(key, 32);
+		spn _Spn(_key);
+		free(_key);
+		_Spn.Encrypt(test);
 		for (int j = 0; j < 16; j++)
 		{
 			if (Xor(test[j], y[i][j]))
