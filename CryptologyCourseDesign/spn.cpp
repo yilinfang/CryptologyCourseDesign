@@ -263,6 +263,75 @@ int spn::LinearAttack(bool x[][16], bool y[][16], int num, bool * _key)
 	return count;
 }
 
+bool * spn::DifferAttack(bool x[][16], bool y[][16], int num)
+{
+	int count[256] = { 0 };
+	int max = -1;
+	int maxNum = 0;
+	bool key[256][8];
+	for (int i = 0; i < 256; i++)
+	{
+		unsigned char temp = i & 0xff;
+		bool* bufa = UnsignedChar_A2Bool_A(&temp, 1);
+		memcpy(key[i], bufa, 8 * sizeof(bool));
+		free(bufa);
+	}
+	bool selectBufa[16] = { 0,0,0,0,1,0,1,1,0,0,0,0,0,0,0,0 };
+	bool(*_x)[16] = (bool(*)[16]) malloc(sizeof(bool) * num * 16);
+	bool(*_y)[16] = (bool(*)[16]) malloc(sizeof(bool) * num * 16);
+	for (int i = 0; i < num; i++)
+	{
+		Xor(x[i], selectBufa, _x[i], 16);
+		bool bufa[16];
+		memcpy(bufa, _x[i], sizeof(bool) * 16);
+		this->Encrypt(bufa);
+		memcpy(_y[i], bufa, sizeof(bool) * 16);
+	}
+	for (int i = 0; i < num; i++)
+	{
+		if (((y[i][0] ^ _y[i][0]) == 0) && ((y[i][1] ^ _y[i][1]) == 0) && ((y[i][2] ^ _y[i][2]) == 0) && ((y[i][3] ^ _y[i][3]) == 0))
+		{
+			if (((y[i][8] ^ _y[i][8]) == 0) && ((y[i][9] ^ _y[i][9]) == 0) && ((y[i][10] ^ _y[i][10]) == 0) && ((y[i][11] ^ _y[i][11]) == 0))
+			{
+				for (int j = 0; j < 256; j++)
+				{
+					bool _key[16] = { 0 };
+					memcpy(_key + 4, key[j], 4 * sizeof(bool));
+					memcpy(_key + 12, key[j] + 4, 4 * sizeof(bool));
+					bool v[16];
+					Xor(_key, y[i], v, 16);
+					bool u[16];
+					memcpy(u, v, 16 * sizeof(bool));
+					this->SReplacement_R(u);
+					bool _v[16];
+					Xor(_key, _y[i], _v, 16);
+					bool _u[16];
+					memcpy(_u, _v, 16 * sizeof(bool)); 
+					this->SReplacement_R(_u);
+					bool __u[16];
+					Xor(u, _u, __u, 16);
+					if (!__u[4] && __u[5] && __u[6] && !__u[7] && !__u[12] && __u[13] && __u[14] && !__u[15])
+					{
+						count[j]++;
+					}
+				}
+			}
+		}
+	}
+	for (int i = 0; i < 256; i++)
+	{
+		if (count[i] > max)
+		{
+			max = count[i];
+			maxNum = i;
+		}
+	}
+	bool* bufa = (bool*)malloc(8 * sizeof(bool));
+	memcpy(bufa, key[maxNum], 8 * sizeof(bool));
+	return bufa;
+}
+
+
 bool * spn::ViolateAttack(bool x[][16], bool y[][16], bool key[8], int num)
 {
 	unsigned char key_t[3] = {0};
@@ -287,6 +356,7 @@ bool * spn::ViolateAttack(bool x[][16], bool y[][16], bool key[8], int num)
 	free(bufa1);
 	return NULL;
 }
+
 
 
 

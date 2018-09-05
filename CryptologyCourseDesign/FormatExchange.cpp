@@ -31,7 +31,6 @@ bool * UnsignedChar_A2Bool_A(unsigned char x[], int len)
 		w = 0x80;
 		for (int j = 0; j < 8; j++)
 		{
-			//printf("%d ", 8 * i + j);
 			if (x[i] & w)
 			{
 				bufa[8 * i + j] = true;
