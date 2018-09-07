@@ -18,7 +18,9 @@ typedef struct Ciphertext {
 }Ciphertext;
 
 Plaintext String2Plaintext(char* s, int len);
+Plaintext String2Plaintext(char* s, int len, int blockSize);
 char* Plaintext2String(Plaintext text);
+char* Ciphertext2String(Ciphertext ciphertext);
 
 bool* UnsignedChar_A2Bool_A(unsigned char x[], int len);
 unsigned char* Bool_A2UnsignedChar_A(bool x[], int len);

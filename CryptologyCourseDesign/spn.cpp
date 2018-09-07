@@ -328,6 +328,8 @@ bool * spn::DifferAttack(bool x[][16], bool y[][16], int num)
 	}
 	bool* bufa = (bool*)malloc(8 * sizeof(bool));
 	memcpy(bufa, key[maxNum], 8 * sizeof(bool));
+	free(_x);
+	free(_y);
 	return bufa;
 }
 

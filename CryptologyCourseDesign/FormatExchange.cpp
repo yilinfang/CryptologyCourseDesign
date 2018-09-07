@@ -1,16 +1,22 @@
 #include "FormatExchange.h"
 
-Plaintext String2Plaintext(char* s, int len)
+Plaintext String2Plaintext(char * s, int len)
+{
+	return String2Plaintext(s, len, 2);
+}
+
+Plaintext String2Plaintext(char* s, int len, int blockSize)
 {
 	Plaintext plaintext;
 	plaintext.len_f = len;
-	if ((plaintext.len_f % 2) != 0)
+	blockSize /= 8;
+	if ((plaintext.len_f % blockSize) != 0)
 	{
-		len++;
+		len += blockSize - (len % blockSize);
 	}
 	plaintext.bufa = (unsigned char*)malloc(len * sizeof(unsigned char));
 	plaintext.len = len;
-	memcpy(plaintext.bufa, s, len * sizeof(unsigned char));
+	memcpy(plaintext.bufa, s, plaintext.len_f * sizeof(unsigned char));
 	return plaintext;
 }
 
@@ -20,6 +26,14 @@ char* Plaintext2String(Plaintext text)
 	memcpy(str, text.bufa, text.len_f * sizeof(char));
 	str[text.len_f] = '\0';
 	return str;
+}
+
+char* Ciphertext2String(Ciphertext ciphertext)
+{
+	char* bufa = (char*)malloc((ciphertext.len + 1) * sizeof(char));
+	memcpy(bufa, ciphertext.bufa, ciphertext.len * sizeof(char));
+	bufa[ciphertext.len] = '\0';
+	return bufa;
 }
 
 bool * UnsignedChar_A2Bool_A(unsigned char x[], int len)

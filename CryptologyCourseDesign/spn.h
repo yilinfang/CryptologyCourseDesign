@@ -22,7 +22,6 @@ public:
 	bool* LinearAttack(bool x[][16], bool y[][16], int num); //21~24 29~32
 	int LinearAttack(bool x[][16], bool y[][16], int num, bool* _key);
 	bool* DifferAttack(bool x[][16], bool y[][16], int num);
-	int DifferAttack(bool _key[8], bool y[][16], bool _y[][16], int num);
 	bool* ViolateAttack(bool x[][16], bool y[][16], bool key[8], int num);
 
 	unsigned char* GetKey();
