@@ -21,6 +21,6 @@ private:
 	BIGNUM* d;
 	bool IsPrime(BIGNUM* bn, int size);
 	void ExpBySquare(BIGNUM* &r, BIGNUM* a, BIGNUM* e, BIGNUM* m);
-	void ChineseReminder(BIGNUM);
+	void ChineseReminder(BIGNUM* &r, BIGNUM* p, BIGNUM* q, BIGNUM* a, BIGNUM* e, BIGNUM* m);
 };
 

@@ -157,4 +157,34 @@ void rsa::ExpBySquare(BIGNUM *& r, BIGNUM * a, BIGNUM * e, BIGNUM * m)
 	BN_CTX_free(ctx);
 }
 
+void rsa::ChineseReminder(BIGNUM *& r, BIGNUM * p, BIGNUM * q, BIGNUM * a, BIGNUM * e, BIGNUM * m)
+{
+	BIGNUM* y1 = BN_new();
+	BIGNUM* y2 = BN_new();
+	BN_CTX* ctx = BN_CTX_new();
+	BN_mod_inverse(y1, q, p, ctx);
+	BN_mod_inverse(y2, p, q, ctx);
+	BIGNUM* a1 = BN_new();
+	BIGNUM* a2 = BN_new();
+	ExpBySquare(a1, a, e, p);
+	ExpBySquare(a2, a, e, q);
+	BIGNUM* x1 = BN_new();
+	BIGNUM* x2 = BN_new();
+	BN_mod_mul(x1, a1, q, m, ctx);
+	BN_mod_mul(x2, a2, p, m, ctx);
+	BN_mod_mul(x1, x1, y1, m, ctx);
+	BN_mod_mul(x2, x2, y2, m, ctx);
+	BIGNUM* res = BN_new();
+	BN_mod_add(res, x1, x2, m, ctx);
+	BN_copy(r, res);
+	BN_free(x1);
+	BN_free(x2);
+	BN_free(y1);
+	BN_free(y2);
+	BN_free(a1);
+	BN_free(a2);
+	BN_free(res);
+}
+
+
 
