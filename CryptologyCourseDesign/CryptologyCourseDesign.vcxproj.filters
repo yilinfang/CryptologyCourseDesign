@@ -30,6 +30,9 @@
     <ClInclude Include="spn_plus.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="rsa.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -45,6 +48,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="spn_plus.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="rsa.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

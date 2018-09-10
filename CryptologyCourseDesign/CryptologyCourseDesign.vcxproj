@@ -148,6 +148,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="FormatExchange.h" />
+    <ClInclude Include="rsa.h" />
     <ClInclude Include="spn.h" />
     <ClInclude Include="spn_plus.h" />
     <ClInclude Include="stdafx.h" />
@@ -156,6 +157,7 @@
   <ItemGroup>
     <ClCompile Include="CryptologyCourseDesign.cpp" />
     <ClCompile Include="FormatExchange.cpp" />
+    <ClCompile Include="rsa.cpp" />
     <ClCompile Include="spn.cpp" />
     <ClCompile Include="spn_plus.cpp" />
     <ClCompile Include="stdafx.cpp">

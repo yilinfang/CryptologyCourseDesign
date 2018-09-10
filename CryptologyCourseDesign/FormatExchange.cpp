@@ -2,7 +2,16 @@
 
 Plaintext String2Plaintext(char * s, int len)
 {
-	return String2Plaintext(s, len, 2);
+	Plaintext plaintext;
+	plaintext.len_f = len;
+	if ((plaintext.len_f % 2) != 0)
+	{
+		len += 1;
+	}
+	plaintext.bufa = (unsigned char*)malloc(len * sizeof(unsigned char));
+	plaintext.len = len;
+	memcpy(plaintext.bufa, s, plaintext.len_f * sizeof(unsigned char));
+	return plaintext;
 }
 
 Plaintext String2Plaintext(char* s, int len, int blockSize)
