@@ -20,8 +20,10 @@ public:
 	void ExpBySquare_mont(BIGNUM* &r, BIGNUM* a, BIGNUM* e);
 	void Encrypt(unsigned char* input, unsigned char* output, int size);
 	char* Encrypt(char* input);
+	void Encrypt(unsigned char* input, int len, char* &output);
 	void Decrypt(unsigned char* input, unsigned char* output, int size);
 	char* Decrypt(char* input);
+	void Decrypt(char* input, unsigned char* &output, int &len);
 private:
 	BIGNUM* p;
 	BIGNUM* q;

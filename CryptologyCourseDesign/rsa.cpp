@@ -276,9 +276,32 @@ char* rsa::Encrypt(char * input)
 	BN_hex2bn(&in, input);
 	BIGNUM* out = BN_new();
 	ExpBySquare(out, in, e, n);
-	//ExpBySquare_mont(out, in, e);
 	char* bufa = BN_bn2hex(out);
 	return bufa;
+}
+
+void rsa::Encrypt(unsigned char * input, int len, char *& output)
+{
+	BIGNUM* in = BN_new();
+	BN_zero(in);
+	//int flag = 8 * len - 1;
+	//for (int i = 0; i < len; i++)
+	//{
+	//	for (int j = 0; j < 8; j++)
+	//	{
+	//		if ((input[i] >> (7 - j)) & 0x1)
+	//		{
+	//			BN_set_bit(in, flag);
+	//		}
+	//		flag--;
+	//	}
+	//}
+	BN_bin2bn(input, len, in);
+	BIGNUM* out = BN_new();
+	ExpBySquare(out, in, e, n);
+	output = BN_bn2hex(out);
+	BN_free(in);
+	BN_free(out);
 }
 
 void rsa::Decrypt(unsigned char * input, unsigned char * output, int size)
@@ -321,8 +344,21 @@ char* rsa::Decrypt(char * input)
 	BIGNUM* in = BN_new();
 	BN_hex2bn(&in, input);
 	BIGNUM* out = BN_new();
-	ExpBySquare(out, in, d, n);
+	//ExpBySquare(out, in, d, n);
+	ChineseReminder(out, p, q, in, d, n);
 	//ExpBySquare_mont(out, in, d);
 	char* bufa = BN_bn2hex(out);
 	return bufa;
+}
+
+void rsa::Decrypt(char * input, unsigned char *& output, int & len)
+{
+	BIGNUM* in = BN_new();
+	BN_hex2bn(&in, input);
+	BIGNUM* out = BN_new();
+	ExpBySquare(out, in, d, n);
+	BN_bn2bin(out, output);
+	len = BN_num_bytes(out);
+	BN_free(in);
+	BN_free(out);
 }

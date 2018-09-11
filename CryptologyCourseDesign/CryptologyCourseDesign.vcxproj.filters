@@ -33,6 +33,9 @@
     <ClInclude Include="rsa.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="pgp.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -51,6 +54,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="rsa.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="pgp.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
