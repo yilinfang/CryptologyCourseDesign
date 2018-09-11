@@ -10,6 +10,8 @@ rsa::rsa()
 	n_eular = BN_new();
 	e = BN_new();
 	d = BN_new();
+	R = BN_new();
+	R_inv = BN_new();
 }
 
 
@@ -21,14 +23,19 @@ rsa::~rsa()
 	BN_free(n_eular);
 	BN_free(e);
 	BN_free(d);
+	BN_free(R);
+	BN_free(R_inv);
 }
 
 void rsa::Generate()
 {
-	GeneratePrime(p, 512);
-	GeneratePrime(q, 512);
+	GeneratePrime(p, 1024);
+	GeneratePrime(q, 1024);
 	BN_CTX* ctx = BN_CTX_new();
 	BN_mul(n, p, q, ctx);
+	BN_one(R);
+	BN_lshift(R, R, 2048);
+	BN_mod_inverse(R_inv, R, n, ctx);
 	BIGNUM* _p, *_q;
 	_p = BN_new();
 	_q = BN_new();
@@ -49,7 +56,7 @@ void rsa::GeneratePrime(BIGNUM* &bn, int size)
 	while (1)
 	{
 		BN_rand(_bn, size, 0, 1);
-		if (IsPrime(_bn, 512))
+		if (IsPrime(_bn, size))
 		{
 			break;
 		}
@@ -186,5 +193,136 @@ void rsa::ChineseReminder(BIGNUM *& r, BIGNUM * p, BIGNUM * q, BIGNUM * a, BIGNU
 	BN_free(res);
 }
 
+void rsa::Montgomery(BIGNUM *& r, BIGNUM * A, BIGNUM * B)
+{
+	BN_CTX * ctx = BN_CTX_new();
+	BN_mul(r, A, B, ctx);
+	BN_mul(r, r, R_inv, ctx);
+	BN_CTX_free(ctx);
+}
 
+void rsa::Montgomery(BIGNUM *& r)
+{
+	BN_CTX* ctx = BN_CTX_new();
+	BN_mul(r, r, R, ctx);
+	BN_CTX_free(ctx);
+}
 
+void rsa::ExpBySquare_mont(BIGNUM *& r, BIGNUM * a, BIGNUM * e)
+{
+	BN_one(r);
+	Montgomery(r);
+	BIGNUM* b = BN_new();
+	BN_copy(b, a);
+	Montgomery(b);
+	int n = BN_num_bits(e);
+	BN_CTX * ctx = BN_CTX_new();
+	for (int i = 0; i < n; i++)
+	{
+		if (BN_is_bit_set(e, i))
+		{
+			Montgomery(r, r, b);
+			Montgomery(b, b, b);
+		}
+		else
+		{
+			Montgomery(b, b, b);
+		}
+	}
+	BN_one(b);
+	Montgomery(r, r, b);
+	BN_free(b);
+	BN_CTX_free(ctx);
+}
+
+void rsa::Encrypt(unsigned char * input, unsigned char * output, int size)
+{
+	BIGNUM* in = BN_new();
+	BN_zero(in);
+	size /= 8;
+	int flag = 127;
+	for (int i = 0; i < size; i++)
+	{
+		for (int j = 0; j < 8; j++)
+		{
+			if ((input[i] >> (7 - j)) & 0x1)
+			{
+				BN_set_bit(in, flag);
+			}
+			flag--;
+		}
+	}
+	BIGNUM* out = BN_new();
+	ExpBySquare(out, in, e, n);
+	for (int i = size - 1; i >= 0; i--)
+	{
+		unsigned char w = 0x80;
+		for (int j = 7; j >=0 ; j--)
+		{
+			if (BN_is_bit_set(out, i * 8 + j))
+			{
+				output[size - 1 - i] += w;
+			}
+			w >>= 1;
+		}
+	}
+	BN_free(in);
+	BN_free(out);
+}
+
+char* rsa::Encrypt(char * input)
+{
+	BIGNUM* in = BN_new();
+	BN_hex2bn(&in, input);
+	BIGNUM* out = BN_new();
+	ExpBySquare(out, in, e, n);
+	//ExpBySquare_mont(out, in, e);
+	char* bufa = BN_bn2hex(out);
+	return bufa;
+}
+
+void rsa::Decrypt(unsigned char * input, unsigned char * output, int size)
+{
+	BIGNUM* in = BN_new();
+	BN_zero(in);
+	size /= 8;
+	int flag = 127;
+	for (int i = 0; i < size; i++)
+	{
+		for (int j = 0; j < 8; j++)
+		{
+			if ((input[i] >> (7 - j)) & 0x1)
+			{
+				BN_set_bit(in, flag);
+			}
+			flag--;
+		}
+	}
+	BIGNUM* out = BN_new();
+	ExpBySquare(out, in, d, n);
+	for (int i = size - 1; i >= 0; i--)
+	{
+		unsigned char w = 0x80;
+		for (int j = 7; j >= 0; j--)
+		{
+			if (BN_is_bit_set(out, i * 8 + j))
+			{
+				output[size - 1 - i] += w;
+			}
+			w >>= 1;
+		}
+	}
+	BN_free(in);
+	BN_free(out);
+}
+
+char* rsa::Decrypt(char * input)
+{
+	BIGNUM* in = BN_new();
+	BN_hex2bn(&in, input);
+	BIGNUM* out = BN_new();
+	ExpBySquare(out, in, d, n);
+	//ExpBySquare_mont(out, in, d);
+	char* bufa = BN_bn2hex(out);
+	return bufa;
+}
