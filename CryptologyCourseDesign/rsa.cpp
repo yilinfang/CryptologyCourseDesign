@@ -39,7 +39,8 @@ void rsa::Generate()
 	BN_mul(n, p, q, ctx);
 	BN_one(R);
 	BN_lshift(R, R, 2048);
-	BN_mod_inverse(R_inv, R, n, ctx);
+	//BN_mod_inverse(R_inv, R, n, ctx);
+	GetInverse(R_inv, R, n);
 	BN_mod_inverse(n_inv, n, R, ctx);
 	BN_mod_sub(n_, R, n_inv, R, ctx);
 	BIGNUM* _p, *_q;
@@ -199,8 +200,48 @@ void rsa::ChineseReminder(BIGNUM *& r, BIGNUM * p, BIGNUM * q, BIGNUM * a, BIGNU
 	BN_free(res);
 }
 
-void rsa::GetInverse(BIGNUM *& r, BIGNUM * n, BIGNUM * m)
+void rsa::GetInverse(BIGNUM *& re, BIGNUM * n, BIGNUM * m)
 {
+	BIGNUM* _a = BN_new();
+	BN_copy(_a, m);
+	BIGNUM* _b = BN_new();
+	BN_copy(_b, n);
+	BIGNUM* _t = BN_new();
+	BN_zero(_t);
+	BIGNUM* t = BN_new();
+	BN_one(t);
+	BIGNUM* q = BN_new();
+	BIGNUM* r = BN_new();
+	BN_CTX * ctx = BN_CTX_new();
+	BN_div(q, r, _a, _b, ctx);
+	BIGNUM* temp = BN_new();
+	while (!BN_is_zero(r))
+	{
+		BN_mul(q, q, t, ctx);
+		BN_mod_sub(temp, _t, q, m, ctx);
+		BN_copy(_t, t);
+		BN_copy(t, temp);
+		BN_copy(_a, _b);
+		BN_copy(_b, r);
+		BN_div(q, r, _a, _b, ctx);
+	}
+	if (int i = BN_is_one(_b))
+	{
+		BN_copy(re, t);
+	}
+	else
+	{
+		BN_free(re);
+		re = NULL;
+	}
+	BN_free(_a);
+	BN_free(_b);
+	BN_free(_t);
+	BN_free(t);
+	BN_free(q);
+	BN_free(r);
+	BN_CTX_free(ctx);
+	BN_free(temp);
 }
 
 void rsa::Montgomery(BIGNUM *& r, BIGNUM * A, BIGNUM * B)
