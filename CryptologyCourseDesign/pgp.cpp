@@ -16,8 +16,8 @@ void pgp::CreateECKeys(const char * filepath_pub, const char * filepath_pri)
 	EC_KEY_set_group(key, group);
 	EC_KEY_generate_key(key);
 	BIO* f1, *f2;
-	f1 = BIO_new_file(filepath_pub, "w");
-	f2 = BIO_new_file(filepath_pri, "w");
+	f1 = BIO_new_file(filepath_pub, "wb");
+	f2 = BIO_new_file(filepath_pri, "wb");
 	PEM_write_bio_EC_PUBKEY(f1, key);
 	PEM_write_bio_ECPrivateKey(f2, key, NULL, NULL, 0, NULL, NULL);
 	BIO_flush(f1);
@@ -36,8 +36,8 @@ void pgp::CreateRSAKeys(const char * filepath_pub, const char * filepath_pri)
 	RSA_generate_key_ex(r, 1024, e, NULL);
 	BN_free(e);
 	BIO* f1, *f2;
-	f1 = BIO_new_file(filepath_pub, "w");
-	f2 = BIO_new_file(filepath_pri, "w");
+	f1 = BIO_new_file(filepath_pub, "wb");
+	f2 = BIO_new_file(filepath_pri, "wb");
 	PEM_write_bio_RSAPublicKey(f1, r);
 	PEM_write_bio_RSAPrivateKey(f2, r, NULL, NULL, 0, NULL, NULL);
 	BIO_flush(f1);
@@ -80,13 +80,72 @@ int pgp::Verify(const char * filepath_pub, const unsigned char * dig, unsigned i
 	return n;
 }
 
-void pgp::Encrypt(char * filepath_pub, unsigned char * msg, int msg_len, unsigned char * r, int * r_len)
+void pgp::Encrypt(const char * filepath_pub, unsigned char * msg, int msg_len, unsigned char * r, unsigned * r_len)
 {
-	EC_KEY * key = NULL;
-	BIO * file = NULL;
+	//EC_KEY * ec_key = EC_KEY_new();
+	RSA* rsa = RSA_new();
+	BIO *file = NULL;
 	file = BIO_new_file(filepath_pub, "rb");
-	key = PEM_read_bio_EC_PUBKEY(file, NULL, NULL, NULL);
+	//ec_key = PEM_read_bio_EC_PUBKEY(file, NULL, NULL, NULL);
+	rsa = PEM_read_bio_RSAPublicKey(file, NULL, NULL, NULL);
+	EVP_PKEY * key = EVP_PKEY_new();
+	//EVP_PKEY_assign_EC_KEY(key, ec_key);
+	EVP_PKEY_set1_RSA(key, rsa);
+	RSA_free(rsa);
+	BIO_free(file);
+	EVP_PKEY_CTX * ctx = NULL;
+	OpenSSL_add_all_ciphers();
+	ctx = EVP_PKEY_CTX_new(key, NULL);
+	EVP_PKEY_encrypt_init(ctx);
+	printf("%d\n", *(r_len));
+	getchar();
+	EVP_PKEY_encrypt(ctx, r, r_len, msg, msg_len);
+	printf("%d\n",*(r_len));
+	getchar();
+	EVP_PKEY_CTX_free(ctx);
+}
 
+void pgp::Encrypt(unsigned char* key,unsigned char * msg, int msg_len, unsigned char * r, int * r_len)
+{
+	EVP_CIPHER_CTX * ctx = EVP_CIPHER_CTX_new();
+	EVP_CIPHER_CTX_init(ctx);
+	unsigned char iv[16] = { 0 };
+	EVP_EncryptInit(ctx, EVP_aes_256_ecb(), key, iv);
+	EVP_EncryptUpdate(ctx, r, r_len, msg, msg_len);
+	EVP_EncryptFinal(ctx, r, r_len);
+	EVP_CIPHER_CTX_free(ctx);
+}
+
+void pgp::Decrypt(const char * filepath_pri, unsigned char * msg, int msg_len, unsigned char * r, unsigned * r_len)
+{
+	//EC_KEY * ec_key = EC_KEY_new();
+	RSA* rsa = RSA_new();
+	BIO* file = NULL;
+	file = BIO_new_file(filepath_pri, "rb");
+	//ec_key = PEM_read_bio_ECPrivateKey(file, NULL, NULL, NULL);
+	rsa = PEM_read_bio_RSAPrivateKey(file, NULL, NULL, NULL);
+	EVP_PKEY * key = EVP_PKEY_new();
+	//EVP_PKEY_assign_RSA(key, rsa);
+	EVP_PKEY_set1_RSA(key, rsa);
+	RSA_free(rsa);
+	BIO_free(file);
+	EVP_PKEY_CTX * ctx = NULL;
+	OpenSSL_add_all_ciphers();
+	ctx = EVP_PKEY_CTX_new(key, NULL);
+	EVP_PKEY_decrypt_init(ctx);
+	EVP_PKEY_decrypt(ctx, r, r_len, msg, msg_len);
+	EVP_PKEY_CTX_free(ctx);
+}
+
+void pgp::Decrypt(unsigned char * key, unsigned char * msg, int msg_len, unsigned char * r, int * r_len)
+{
+	EVP_CIPHER_CTX * ctx = EVP_CIPHER_CTX_new();
+	EVP_CIPHER_CTX_init(ctx);
+	unsigned char iv[16] = { 0 };
+	EVP_DecryptInit(ctx, EVP_aes_256_ecb(),key, iv);
+	EVP_DecryptUpdate(ctx, r, r_len, msg, msg_len);
+	EVP_DecryptFinal(ctx, r, r_len);
+	EVP_CIPHER_CTX_free(ctx);
 }
 
 

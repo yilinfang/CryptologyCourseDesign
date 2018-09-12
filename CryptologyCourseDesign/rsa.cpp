@@ -12,6 +12,8 @@ rsa::rsa()
 	d = BN_new();
 	R = BN_new();
 	R_inv = BN_new();
+	n_inv = BN_new();
+	n_ = BN_new();
 }
 
 
@@ -25,6 +27,8 @@ rsa::~rsa()
 	BN_free(d);
 	BN_free(R);
 	BN_free(R_inv);
+	BN_free(n_inv);
+	BN_free(n_);
 }
 
 void rsa::Generate()
@@ -36,6 +40,8 @@ void rsa::Generate()
 	BN_one(R);
 	BN_lshift(R, R, 2048);
 	BN_mod_inverse(R_inv, R, n, ctx);
+	BN_mod_inverse(n_inv, n, R, ctx);
+	BN_mod_sub(n_, R, n_inv, R, ctx);
 	BIGNUM* _p, *_q;
 	_p = BN_new();
 	_q = BN_new();
@@ -193,18 +199,47 @@ void rsa::ChineseReminder(BIGNUM *& r, BIGNUM * p, BIGNUM * q, BIGNUM * a, BIGNU
 	BN_free(res);
 }
 
+void rsa::GetInverse(BIGNUM *& r, BIGNUM * n, BIGNUM * m)
+{
+}
+
 void rsa::Montgomery(BIGNUM *& r, BIGNUM * A, BIGNUM * B)
 {
 	BN_CTX * ctx = BN_CTX_new();
-	BN_mul(r, A, B, ctx);
-	BN_mul(r, r, R_inv, ctx);
+	BIGNUM* t = BN_new();
+	BN_mul(t, A, B, ctx);
+	//BN_mod_mul(r, r, R_inv, n, ctx);
+	BIGNUM* m = BN_new();
+	BN_mod_mul(m, t, n_, R, ctx); //模R即取m的后2048位，未找到取位API，以此替代
+	BIGNUM* u = BN_new();
+	BN_mul(u, m, n, ctx);
+	BN_add(u, u, t);
+	BN_rshift(u, u, 2048);
+	if (BN_cmp(u, n) >= 0)
+	{
+		BN_sub(r, u, n);
+	}
+	else
+	{
+		BN_copy(r, u);
+	}
+	BN_free(t);
+	BN_free(u);
+	BN_free(m);
 	BN_CTX_free(ctx);
 }
 
 void rsa::Montgomery(BIGNUM *& r)
 {
 	BN_CTX* ctx = BN_CTX_new();
-	BN_mul(r, r, R, ctx);
+	BN_mod_mul(r, r, R, n, ctx);
+	BN_CTX_free(ctx);
+}
+
+void rsa::Montgomery_Inverse(BIGNUM *& r)
+{
+	BN_CTX* ctx = BN_CTX_new();
+	BN_mod_mul(r, r, R_inv, n, ctx);
 	BN_CTX_free(ctx);
 }
 
@@ -229,8 +264,7 @@ void rsa::ExpBySquare_mont(BIGNUM *& r, BIGNUM * a, BIGNUM * e)
 			Montgomery(b, b, b);
 		}
 	}
-	BN_one(b);
-	Montgomery(r, r, b);
+	Montgomery_Inverse(r);
 	BN_free(b);
 	BN_CTX_free(ctx);
 }
@@ -276,6 +310,7 @@ char* rsa::Encrypt(char * input)
 	BN_hex2bn(&in, input);
 	BIGNUM* out = BN_new();
 	ExpBySquare(out, in, e, n);
+	//ExpBySquare_mont(out, in, e);
 	char* bufa = BN_bn2hex(out);
 	return bufa;
 }
@@ -345,8 +380,8 @@ char* rsa::Decrypt(char * input)
 	BN_hex2bn(&in, input);
 	BIGNUM* out = BN_new();
 	//ExpBySquare(out, in, d, n);
-	ChineseReminder(out, p, q, in, d, n);
-	//ExpBySquare_mont(out, in, d);
+	//ChineseReminder(out, p, q, in, d, n);
+	ExpBySquare_mont(out, in, d);
 	char* bufa = BN_bn2hex(out);
 	return bufa;
 }
@@ -357,6 +392,7 @@ void rsa::Decrypt(char * input, unsigned char *& output, int & len)
 	BN_hex2bn(&in, input);
 	BIGNUM* out = BN_new();
 	ExpBySquare(out, in, d, n);
+	//ExpBySquare_mont(out, in, e);
 	BN_bn2bin(out, output);
 	len = BN_num_bytes(out);
 	BN_free(in);

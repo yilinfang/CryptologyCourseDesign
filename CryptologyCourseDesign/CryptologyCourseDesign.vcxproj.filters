@@ -36,6 +36,9 @@
     <ClInclude Include="pgp.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="rainbow.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -57,6 +60,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="pgp.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="rainbow.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
