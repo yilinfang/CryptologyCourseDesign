@@ -58,7 +58,7 @@ void pgp::Signature(const char * filepath_pri, const unsigned char * dig, unsign
 	EC_KEY_free(key);
 }
 
-void pgp::Digest(const char * msg, int len, unsigned char * dig, unsigned int * dig_len)
+void pgp::Digest(const unsigned char * msg, int len, unsigned char * dig, unsigned int * dig_len)
 {
 	EVP_MD_CTX * md_ctx = EVP_MD_CTX_new();
 	EVP_MD_CTX_init(md_ctx);
@@ -97,12 +97,9 @@ void pgp::Encrypt(const char * filepath_pub, unsigned char * msg, int msg_len, u
 	OpenSSL_add_all_ciphers();
 	ctx = EVP_PKEY_CTX_new(key, NULL);
 	EVP_PKEY_encrypt_init(ctx);
-	printf("%d\n", *(r_len));
-	getchar();
 	EVP_PKEY_encrypt(ctx, r, r_len, msg, msg_len);
-	printf("%d\n",*(r_len));
-	getchar();
 	EVP_PKEY_CTX_free(ctx);
+	EVP_PKEY_free(key);
 }
 
 void pgp::Encrypt(unsigned char* key,unsigned char * msg, int msg_len, unsigned char * r, int * r_len)
@@ -114,6 +111,78 @@ void pgp::Encrypt(unsigned char* key,unsigned char * msg, int msg_len, unsigned 
 	EVP_EncryptUpdate(ctx, r, r_len, msg, msg_len);
 	EVP_EncryptFinal(ctx, r, r_len);
 	EVP_CIPHER_CTX_free(ctx);
+}
+
+void pgp::Encrypt(char * password, const char* filepath_pub, const char* filepath_pri,const char* filepath_in,const char* filepath_out)
+{
+	FILE* f1 = NULL;
+	fopen_s(&f1, filepath_in, "rb");
+	FILE* f2 = NULL;
+	fopen_s(&f2, filepath_out, "wb");
+	unsigned char msg[1025];
+	char output[2048];
+	unsigned char* bufa = (unsigned char*)malloc(10000 * sizeof(unsigned char));
+	unsigned char* p = bufa;
+	char c = fgetc(f1);
+	int i = 0;
+	while (c != EOF)
+	{
+		msg[i] = c;
+		i++;
+		c = fgetc(f1);
+	}
+	int msg_len = i;
+	unsigned char* bufa1, *bufa2;
+	bufa1 = (unsigned char*)malloc(1024 * sizeof(unsigned char));
+	bufa2 = (unsigned char*)malloc(1024 * sizeof(unsigned char));
+	unsigned len1,len2;
+	Digest(msg, msg_len, bufa1, &len1);
+	Signature(filepath_pri, bufa1, len1, bufa2, &len2);
+	len1 = 0;
+	memcpy(p, &len2, sizeof(unsigned int));
+	p += 4;
+	len1 += 4;
+	memcpy(p, bufa2, len2 * sizeof(unsigned char));
+	p += len2;
+	len1 += len2;
+	memcpy(p, &msg_len, sizeof(unsigned));
+	p += 4;
+	len1 += 4;
+	memcpy(p, msg, msg_len * sizeof(char));
+	len1 += msg_len;
+	unsigned char key_s[EVP_MAX_KEY_LENGTH];
+	unsigned char iv[EVP_MAX_IV_LENGTH];
+	EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+	OpenSSL_add_all_ciphers();
+	memcpy(bufa1, password, strlen(password) * sizeof(char));
+	EVP_BytesToKey(EVP_aes_256_cfb(), EVP_md5(), NULL, bufa1, strlen(password), 10, key_s, iv);
+	EVP_EncryptInit(ctx, EVP_aes_256_cfb(),key_s, iv);
+	int len3,_len;
+	len3 = 0;
+	EVP_EncryptUpdate(ctx, bufa1, &_len, bufa, len1);
+	len3 += _len;
+	EVP_EncryptFinal(ctx, bufa1, &_len);
+	len3 += _len;
+	memcpy(bufa2, key_s, EVP_MAX_KEY_LENGTH * sizeof(unsigned char));
+	memcpy(bufa2 + EVP_MAX_KEY_LENGTH, iv, EVP_MAX_IV_LENGTH * sizeof(unsigned char));
+	unsigned len4;
+	unsigned char* bufa4 = (unsigned char*)malloc(1024 * sizeof(unsigned char));
+	Encrypt(filepath_pub, bufa2, EVP_MAX_KEY_LENGTH + EVP_MAX_IV_LENGTH, bufa4, &len4);
+	memcpy(output, &len4, sizeof(unsigned));
+	memcpy(output + 4, bufa4, len4 * sizeof(unsigned char));
+	memcpy(output + 4 + len4, &len3, sizeof(int));
+	memcpy(output + 4 + len4 + 4, bufa1, len3 * sizeof(unsigned char));
+	for (i = 0; i < 4 + len4 + 4 + len3; i++)
+	{
+		fprintf_s(f2,"%c", output[i]);
+	}
+	free(bufa);
+	free(bufa1);
+	free(bufa2);
+	free(bufa4);
+	EVP_CIPHER_CTX_free(ctx);
+	fclose(f1);
+	fclose(f2);
 }
 
 void pgp::Decrypt(const char * filepath_pri, unsigned char * msg, int msg_len, unsigned char * r, unsigned * r_len)
@@ -135,6 +204,7 @@ void pgp::Decrypt(const char * filepath_pri, unsigned char * msg, int msg_len, u
 	EVP_PKEY_decrypt_init(ctx);
 	EVP_PKEY_decrypt(ctx, r, r_len, msg, msg_len);
 	EVP_PKEY_CTX_free(ctx);
+	EVP_PKEY_free(key);
 }
 
 void pgp::Decrypt(unsigned char * key, unsigned char * msg, int msg_len, unsigned char * r, int * r_len)
@@ -146,6 +216,79 @@ void pgp::Decrypt(unsigned char * key, unsigned char * msg, int msg_len, unsigne
 	EVP_DecryptUpdate(ctx, r, r_len, msg, msg_len);
 	EVP_DecryptFinal(ctx, r, r_len);
 	EVP_CIPHER_CTX_free(ctx);
+}
+
+int pgp::Decrypt(const char * filepath_pub, const char * filepath_pri, const char * filepath_in, const char * filepath_out)
+{
+	FILE *f1, *f2;
+	fopen_s(&f1, filepath_in, "rb");
+	fopen_s(&f2, filepath_out, "wb");
+	unsigned len1;
+	char size[4];
+	size[0] = fgetc(f1);
+	size[1] = fgetc(f1);
+	size[2] = fgetc(f1);
+	size[3] = fgetc(f1);
+	memcpy(&len1, size, sizeof(unsigned));
+	unsigned char* bufa1 = (unsigned char*)malloc(1024 * sizeof(unsigned char));
+	for (int i = 0; i < len1; i++)
+	{
+		bufa1[i] = fgetc(f1);
+	}
+	unsigned char key_s[EVP_MAX_KEY_LENGTH];
+	unsigned char iv[EVP_MAX_IV_LENGTH];
+	unsigned char* bufa2 = (unsigned char*)malloc(1024 * sizeof(unsigned char));
+	unsigned len2;
+	Decrypt(filepath_pri, bufa1, len1, bufa2 ,&len2);
+	memcpy(key_s, bufa2, EVP_MAX_KEY_LENGTH * sizeof(unsigned char));
+	memcpy(iv, bufa2 + EVP_MAX_KEY_LENGTH, EVP_MAX_IV_LENGTH * sizeof(unsigned char));
+	size[0] = fgetc(f1);
+	size[1] = fgetc(f1);
+	size[2] = fgetc(f1);
+	size[3] = fgetc(f1);
+	memcpy(&len1, size, sizeof(unsigned));
+	for (int i = 0; i < len1; i++)
+	{
+		bufa1[i] = fgetc(f1);
+	}
+	EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+	OpenSSL_add_all_ciphers();
+	EVP_DecryptInit_ex(ctx, EVP_aes_256_cfb(), NULL, key_s, iv);
+	int len3, _len;
+	len3 = 0;
+	EVP_DecryptUpdate(ctx, bufa2, &_len, bufa1, len1);
+	len3 += _len;
+	EVP_DecryptFinal_ex(ctx, bufa2, &_len);
+	len3 += _len;
+	EVP_CIPHER_CTX_free(ctx);
+	unsigned char* p = bufa2;
+	unsigned sig_len;
+	unsigned char* sig = (unsigned char*)malloc(1024 * sizeof(unsigned char));
+	unsigned msg_len;
+	unsigned char* msg = (unsigned char*)malloc(1024 * sizeof(unsigned char));
+	memcpy(&sig_len, p, sizeof(unsigned));
+	p += 4;
+	memcpy(sig, p, sig_len * sizeof(unsigned char));
+	p += sig_len;
+	memcpy(&msg_len, p, sizeof(unsigned));
+	p += 4;
+	memcpy(msg, p, msg_len * sizeof(unsigned char));
+	for (int i = 0; i < msg_len; i++)
+	{
+		fprintf(f2,"%c", msg[i]);
+		printf("%c", msg[i]);
+	}
+	printf("\n");
+	unsigned dig_len;
+	unsigned char* dig = (unsigned char*)malloc(1024 * sizeof(unsigned char));
+	Digest(msg, msg_len, dig, &dig_len);
+	int res = Verify(filepath_pub, dig, dig_len, sig, sig_len);
+	free(dig);
+	free(sig);
+	free(msg);
+	free(bufa1);
+	free(bufa2);
+	return res;
 }
 
 
