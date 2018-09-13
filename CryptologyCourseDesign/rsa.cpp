@@ -251,7 +251,9 @@ void rsa::Montgomery(BIGNUM *& r, BIGNUM * A, BIGNUM * B)
 	BN_mul(t, A, B, ctx);
 	//BN_mod_mul(r, r, R_inv, n, ctx);
 	BIGNUM* m = BN_new();
-	BN_mod_mul(m, t, n_, R, ctx); //模R即取m的后2048位，未找到取位API，以此替代
+	//BN_mod_mul(m, t, n_, R, ctx); //模R即取m的后2048位，未找到取位API，以此替代
+	BN_mul(m, t, n_, ctx);
+	BN_mask_bits(m, 2048);
 	BIGNUM* u = BN_new();
 	BN_mul(u, m, n, ctx);
 	BN_add(u, u, t);
