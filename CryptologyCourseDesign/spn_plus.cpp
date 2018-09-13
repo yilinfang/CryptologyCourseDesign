@@ -4,9 +4,18 @@
 spn_plus::spn_plus(unsigned char * key0)
 {
 	KeyExpansion(key0);
+	for (int i = 0; i < 128; i++)
+	{
+		pbox_inverse[pbox[i]] = i;
+	}
+	for (int i = 0; i < 256; i++)
+	{
+		sbox_inverse[sbox[i]] = i;
+	}
+;
 }
 
-void spn_plus::Encrypt(unsigned char * plaintext)
+unsigned char* spn_plus::Encrypt(unsigned char * plaintext)
 {
 	int i;
 	for (i = 0; i < 9; i++)
@@ -19,6 +28,24 @@ void spn_plus::Encrypt(unsigned char * plaintext)
 	plaintext = Sub(plaintext, sbox);
 	i++;
 	plaintext = Xor(plaintext, key + i * 16);
+	return plaintext;
+}
+
+unsigned char * spn_plus::Decrypt(unsigned char * ciphertext)
+{
+	int i = 10;
+	ciphertext = Xor(ciphertext, key + i * 16);
+	i--;
+	ciphertext = Sub(ciphertext, sbox_inverse);
+	ciphertext = Xor(ciphertext, key + i * 16);
+	for (int i = 8; i >= 0; i--)
+	{
+
+		ciphertext = Per(ciphertext, pbox_inverse);
+		ciphertext = Sub(ciphertext, sbox_inverse);
+		ciphertext = Xor(ciphertext, key + i * 16);
+	}
+	return ciphertext;
 }
 
 unsigned char * spn_plus::Xor(unsigned char * a, unsigned char * b)
@@ -34,10 +61,7 @@ unsigned char * spn_plus::Sub(unsigned char * input, unsigned char * sbox)
 {
 	for (int i = 0; i < 16; i++)
 	{
-		unsigned char x, y;
-		x = input[i] >> 4;
-		y = input[i] & 0xf;
-		input[i] = sbox[16 * x + y];
+		input[i] = sbox[input[i]];
 	}
 	return input;
 }
@@ -50,16 +74,13 @@ unsigned char * spn_plus::Per(unsigned char * input, unsigned char * pbox)
 		bufa[i] = input[i];
 		input[i] = 0;
 	}
-	for (int i = 0; i < 16; i++)
+	for (int i = 0; i < 128; i++)
 	{
-		for (int j = 0; j < 8; j++)
+		unsigned char x = bufa[i / 8] & (0x80 >> (i % 8));
+		unsigned char p = pbox[i];
+		if (x)
 		{
-			unsigned char a, b, c, t;
-			a = pbox[i * 8 + j];
-			b = a / 8;
-			c = a % 8;
-			t = ((bufa[i] >> (7 - j)) & 0x1) << (7 - c);
-			input[b] = input[b] | t;
+			input[p / 8] |= (0x80 >> (p  %  8));
 		}
 	}
 	return input;
