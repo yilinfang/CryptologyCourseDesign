@@ -68,7 +68,7 @@ unsigned char * spn_plus::Sub(unsigned char * input, unsigned char * sbox)
 
 unsigned char * spn_plus::Per(unsigned char * input, unsigned char * pbox)
 {
-	unsigned char bufa[17] = {0};
+	unsigned char bufa[16] = {0};
 	for (int i = 0; i < 16; i++)
 	{
 		bufa[i] = input[i];

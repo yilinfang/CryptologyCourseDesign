@@ -119,9 +119,9 @@ void pgp::Encrypt(char * password, const char* filepath_pub, const char* filepat
 	fopen_s(&f1, filepath_in, "rb");
 	FILE* f2 = NULL;
 	fopen_s(&f2, filepath_out, "wb");
-	unsigned char msg[1025];
-	char output[2048];
-	unsigned char* bufa = (unsigned char*)malloc(10000 * sizeof(unsigned char));
+	unsigned char* msg = (unsigned char*)malloc(0x1146400 * sizeof(unsigned char));
+	char* output = (char*)malloc(0x1150000 * sizeof(char));
+	unsigned char* bufa = (unsigned char*)malloc(0x1150000 * sizeof(unsigned char));
 	unsigned char* p = bufa;
 	char c = fgetc(f1);
 	int i = 0;
@@ -132,17 +132,18 @@ void pgp::Encrypt(char * password, const char* filepath_pub, const char* filepat
 		c = fgetc(f1);
 	}
 	int msg_len = i;
-	unsigned char* bufa1, *bufa2;
-	bufa1 = (unsigned char*)malloc(1024 * sizeof(unsigned char));
-	bufa2 = (unsigned char*)malloc(1024 * sizeof(unsigned char));
+	unsigned char* bufa1;
+	bufa1 = (unsigned char*)malloc(0x1150000 * sizeof(unsigned char));
+	unsigned char* dig = (unsigned char*)malloc(1024 * sizeof(unsigned char));
+	unsigned char* sig = (unsigned char*)malloc(1024 * sizeof(unsigned char));
 	unsigned len1,len2;
-	Digest(msg, msg_len, bufa1, &len1);
-	Signature(filepath_pri, bufa1, len1, bufa2, &len2);
+	Digest(msg, msg_len, dig, &len1);
+	Signature(filepath_pri,dig, len1, sig, &len2);
 	len1 = 0;
 	memcpy(p, &len2, sizeof(unsigned int));
 	p += 4;
 	len1 += 4;
-	memcpy(p, bufa2, len2 * sizeof(unsigned char));
+	memcpy(p, sig, len2 * sizeof(unsigned char));
 	p += len2;
 	len1 += len2;
 	memcpy(p, &msg_len, sizeof(unsigned));
@@ -159,27 +160,48 @@ void pgp::Encrypt(char * password, const char* filepath_pub, const char* filepat
 	EVP_EncryptInit(ctx, EVP_aes_256_cfb(),key_s, iv);
 	int len3,_len;
 	len3 = 0;
-	EVP_EncryptUpdate(ctx, bufa1, &_len, bufa, len1);
+	unsigned char *p1, *p2;
+	p1 = bufa;
+	p2 = bufa1;
+	for (;;)
+	{
+		if ((int)(len1 - EVP_MAX_BLOCK_LENGTH) > 0)
+		{
+			EVP_EncryptUpdate(ctx, p2, &_len, p1, EVP_MAX_BLOCK_LENGTH);
+			p1 += EVP_MAX_BLOCK_LENGTH;
+			p2 += _len;
+			len3 += _len;
+			len1 -= EVP_MAX_BLOCK_LENGTH;
+		}
+		else
+		{
+			EVP_EncryptUpdate(ctx, p2, &_len, p1, len1);
+			len3 += _len;
+			break;
+		}
+	}
+	EVP_EncryptFinal(ctx, p2, &_len);
 	len3 += _len;
-	EVP_EncryptFinal(ctx, bufa1, &_len);
-	len3 += _len;
-	memcpy(bufa2, key_s, EVP_MAX_KEY_LENGTH * sizeof(unsigned char));
-	memcpy(bufa2 + EVP_MAX_KEY_LENGTH, iv, EVP_MAX_IV_LENGTH * sizeof(unsigned char));
+	memcpy(bufa, key_s, EVP_MAX_KEY_LENGTH * sizeof(unsigned char));
+	memcpy(bufa + EVP_MAX_KEY_LENGTH, iv, EVP_MAX_IV_LENGTH * sizeof(unsigned char));
 	unsigned len4;
-	unsigned char* bufa4 = (unsigned char*)malloc(1024 * sizeof(unsigned char));
-	Encrypt(filepath_pub, bufa2, EVP_MAX_KEY_LENGTH + EVP_MAX_IV_LENGTH, bufa4, &len4);
+	unsigned char* bufa2 = (unsigned char*)malloc(0x1024 * sizeof(unsigned char));
+	Encrypt(filepath_pub, bufa, EVP_MAX_KEY_LENGTH + EVP_MAX_IV_LENGTH, bufa2, &len4);
 	memcpy(output, &len4, sizeof(unsigned));
-	memcpy(output + 4, bufa4, len4 * sizeof(unsigned char));
+	memcpy(output + 4, bufa2, len4 * sizeof(unsigned char));
 	memcpy(output + 4 + len4, &len3, sizeof(int));
 	memcpy(output + 4 + len4 + 4, bufa1, len3 * sizeof(unsigned char));
 	for (i = 0; i < 4 + len4 + 4 + len3; i++)
 	{
 		fprintf_s(f2,"%c", output[i]);
 	}
+	free(msg);
+	free(output);
+	free(sig);
+	free(dig);
 	free(bufa);
 	free(bufa1);
 	free(bufa2);
-	free(bufa4);
 	EVP_CIPHER_CTX_free(ctx);
 	fclose(f1);
 	fclose(f2);
@@ -230,14 +252,14 @@ int pgp::Decrypt(const char * filepath_pub, const char * filepath_pri, const cha
 	size[2] = fgetc(f1);
 	size[3] = fgetc(f1);
 	memcpy(&len1, size, sizeof(unsigned));
-	unsigned char* bufa1 = (unsigned char*)malloc(1024 * sizeof(unsigned char));
+	unsigned char* bufa1 = (unsigned char*)malloc(0x1150000 * sizeof(unsigned char));
 	for (int i = 0; i < len1; i++)
 	{
 		bufa1[i] = fgetc(f1);
 	}
 	unsigned char key_s[EVP_MAX_KEY_LENGTH];
 	unsigned char iv[EVP_MAX_IV_LENGTH];
-	unsigned char* bufa2 = (unsigned char*)malloc(1024 * sizeof(unsigned char));
+	unsigned char* bufa2 = (unsigned char*)malloc(0x1150000 * sizeof(unsigned char));
 	unsigned len2;
 	Decrypt(filepath_pri, bufa1, len1, bufa2 ,&len2);
 	memcpy(key_s, bufa2, EVP_MAX_KEY_LENGTH * sizeof(unsigned char));
@@ -256,16 +278,38 @@ int pgp::Decrypt(const char * filepath_pub, const char * filepath_pri, const cha
 	EVP_DecryptInit_ex(ctx, EVP_aes_256_cfb(), NULL, key_s, iv);
 	int len3, _len;
 	len3 = 0;
-	EVP_DecryptUpdate(ctx, bufa2, &_len, bufa1, len1);
-	len3 += _len;
-	EVP_DecryptFinal_ex(ctx, bufa2, &_len);
+	unsigned char *p1, *p2;
+	p1 = bufa1;
+	p2 = bufa2;
+	for (;;)
+	{
+		if ((int)(len1 - EVP_MAX_BLOCK_LENGTH) > 0)
+		{
+			EVP_DecryptUpdate(ctx, p2, &_len, p1, EVP_MAX_BLOCK_LENGTH);
+			//EVP_EncryptUpdate(ctx, p2, &_len, p1, EVP_MAX_BLOCK_LENGTH);
+			p1 += EVP_MAX_BLOCK_LENGTH;
+			p2 += _len;
+			len3 += _len;
+			len1 -= EVP_MAX_BLOCK_LENGTH;
+		}
+		else
+		{
+			//EVP_EncryptUpdate(ctx, p2, &_len, p1, len1);
+			EVP_DecryptUpdate(ctx, p2, &_len, p1, len1);
+			len3 += _len;
+			break;
+		}
+	}
+	//EVP_DecryptUpdate(ctx, bufa2, &_len, bufa1, len1);
+	//len3 += _len;
+	EVP_DecryptFinal_ex(ctx, p2, &_len);
 	len3 += _len;
 	EVP_CIPHER_CTX_free(ctx);
 	unsigned char* p = bufa2;
 	unsigned sig_len;
 	unsigned char* sig = (unsigned char*)malloc(1024 * sizeof(unsigned char));
 	unsigned msg_len;
-	unsigned char* msg = (unsigned char*)malloc(1024 * sizeof(unsigned char));
+	unsigned char* msg = (unsigned char*)malloc(0x1150000 * sizeof(unsigned char));
 	memcpy(&sig_len, p, sizeof(unsigned));
 	p += 4;
 	memcpy(sig, p, sig_len * sizeof(unsigned char));
