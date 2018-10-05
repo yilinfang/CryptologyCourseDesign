@@ -25,6 +25,8 @@ public:
 	void Encrypt(unsigned char* input, int len, char* &output);
 	void Decrypt(unsigned char* input, unsigned char* output, int size);
 	char* Decrypt(char* input);
+	char* Decrypt_mont(char* input);
+	char* Decrypt_reminder(char* input);
 	void Decrypt(char* input, unsigned char* &output, int &len);
 private:
 	BIGNUM* p;
@@ -37,5 +39,7 @@ private:
 	BIGNUM* d;
 	BIGNUM* R;
 	BIGNUM* R_inv;
+	BIGNUM* p_;
+	BIGNUM* q_;
 };
 

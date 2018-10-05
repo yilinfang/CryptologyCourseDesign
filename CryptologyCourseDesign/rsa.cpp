@@ -14,6 +14,8 @@ rsa::rsa()
 	R_inv = BN_new();
 	n_inv = BN_new();
 	n_ = BN_new();
+	q_ = BN_new();
+	p_ = BN_new();
 }
 
 
@@ -29,6 +31,8 @@ rsa::~rsa()
 	BN_free(R_inv);
 	BN_free(n_inv);
 	BN_free(n_);
+	BN_free(p_);
+	BN_free(q_);
 }
 
 void rsa::Generate()
@@ -54,6 +58,8 @@ void rsa::Generate()
 	BN_mod_inverse(d, e, n_eular, ctx);
 	BN_free(_p);
 	BN_free(_q);
+	BN_mod_inverse(q_, q, p, ctx);
+	BN_mod_inverse(p_, p, q, ctx);
 	BN_CTX_free(ctx);
 }
 
@@ -173,11 +179,7 @@ void rsa::ExpBySquare(BIGNUM *& r, BIGNUM * a, BIGNUM * e, BIGNUM * m)
 
 void rsa::ChineseReminder(BIGNUM *& r, BIGNUM * p, BIGNUM * q, BIGNUM * a, BIGNUM * e, BIGNUM * m)
 {
-	BIGNUM* y1 = BN_new();
-	BIGNUM* y2 = BN_new();
 	BN_CTX* ctx = BN_CTX_new();
-	BN_mod_inverse(y1, q, p, ctx);
-	BN_mod_inverse(y2, p, q, ctx);
 	BIGNUM* a1 = BN_new();
 	BIGNUM* a2 = BN_new();
 	ExpBySquare(a1, a, e, p);
@@ -186,15 +188,13 @@ void rsa::ChineseReminder(BIGNUM *& r, BIGNUM * p, BIGNUM * q, BIGNUM * a, BIGNU
 	BIGNUM* x2 = BN_new();
 	BN_mod_mul(x1, a1, q, m, ctx);
 	BN_mod_mul(x2, a2, p, m, ctx);
-	BN_mod_mul(x1, x1, y1, m, ctx);
-	BN_mod_mul(x2, x2, y2, m, ctx);
+	BN_mod_mul(x1, x1, q_, m, ctx);
+	BN_mod_mul(x2, x2, p_, m, ctx);
 	BIGNUM* res = BN_new();
 	BN_mod_add(res, x1, x2, m, ctx);
 	BN_copy(r, res);
 	BN_free(x1);
 	BN_free(x2);
-	BN_free(y1);
-	BN_free(y2);
 	BN_free(a1);
 	BN_free(a2);
 	BN_free(res);
@@ -422,9 +422,33 @@ char* rsa::Decrypt(char * input)
 	BIGNUM* in = BN_new();
 	BN_hex2bn(&in, input);
 	BIGNUM* out = BN_new();
+	ExpBySquare(out, in, d, n);
+	//ChineseReminder(out, p, q, in, d, n);
+	//ExpBySquare_mont(out, in, d);
+	char* bufa = BN_bn2hex(out);
+	return bufa;
+}
+
+char * rsa::Decrypt_mont(char * input)
+{
+	BIGNUM* in = BN_new();
+	BN_hex2bn(&in, input);
+	BIGNUM* out = BN_new();
 	//ExpBySquare(out, in, d, n);
 	//ChineseReminder(out, p, q, in, d, n);
 	ExpBySquare_mont(out, in, d);
+	char* bufa = BN_bn2hex(out);
+	return bufa;
+}
+
+char * rsa::Decrypt_reminder(char * input)
+{
+	BIGNUM* in = BN_new();
+	BN_hex2bn(&in, input);
+	BIGNUM* out = BN_new();
+	//ExpBySquare(out, in, d, n);
+	ChineseReminder(out, p, q, in, d, n);
+	//ExpBySquare_mont(out, in, d);
 	char* bufa = BN_bn2hex(out);
 	return bufa;
 }

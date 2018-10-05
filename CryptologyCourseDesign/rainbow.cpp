@@ -4,8 +4,8 @@
 
 rainbow::rainbow()
 {
-	head = (unsigned char(*)[7]) malloc(sizeof(bool) * round * 7);
-	tail = (unsigned char(*)[7]) malloc(sizeof(bool) * round * 7);
+	head = (unsigned char(*)[7]) malloc(sizeof(unsigned char) * round * 7);
+	tail = (unsigned char(*)[7]) malloc(sizeof(unsigned char) * round * 7);
 }
 
 
